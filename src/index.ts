@@ -1,3 +1,3 @@
-import { initClient } from '@/signaling/initClient.js';
+import { initClient } from './signaling/initClient.js';
 
 initClient();

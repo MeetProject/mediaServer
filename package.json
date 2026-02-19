@@ -6,37 +6,29 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint 'src/**/*.{ts,js}' --fix"
-  },
-  "devDependencies": {
-    "@types/node": "^24.10.1",
-    "@types/sockjs": "^0.3.36",
-    "@types/sockjs-client": "^1.5.4",
-    "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.48.0",
-    "@typescript-eslint/parser": "^8.48.0",
-    "eslint": "^9.39.1",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-define-config": "^2.1.0",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-perfectionist": "^4.15.1",
-    "eslint-plugin-prettier": "^5.5.4",
-    "eslint-plugin-sonarjs": "^3.0.5",
-    "eslint-plugin-unicorn": "^62.0.0",
-    "node-pre-gyp": "^0.17.0",
-    "nodemon": "^3.1.11",
-    "prettier": "^3.7.3",
-    "ts-node-dev": "^2.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "lint": "eslint src"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.2.1",
-    "@types/stompjs": "^2.3.10",
-    "async-mutex": "^0.5.0",
-    "sockjs-client": "^1.6.1",
-    "stomp-broker-js": "^1.3.0",
-    "wrtc": "^0.4.7",
-    "ws": "^8.18.3"
+    "mediasoup": "^3.15.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.20.0",
+    "typescript-eslint": "^8.24.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.2",
+    "eslint-plugin-sonarjs": "^3.0.2",
+    "eslint-plugin-unicorn": "^56.0.1",
+    "eslint-plugin-perfectionist": "^4.9.0",
+    "prettier": "^3.5.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1"
   }
 }
