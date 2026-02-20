@@ -1,7 +1,4 @@
 import {
-	Consumer,
-	WebRtcTransport,
-	Producer,
 	Router,
 	DtlsParameters,
 	IceCandidate,
@@ -13,12 +10,6 @@ import {
 } from 'mediasoup/types';
 
 export type TransportDriectionType = 'send' | 'recv';
-
-export interface Peer {
-	transports: Map<TransportDriectionType, WebRtcTransport>;
-	producers: Map<string, Producer>;
-	consumer: Map<string, Consumer>;
-}
 
 export interface Room {
 	router: Router;

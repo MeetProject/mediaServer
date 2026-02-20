@@ -9,7 +9,7 @@ import {
 } from 'mediasoup/types';
 
 import { getWorker } from './worker.js';
-import { config } from '@/lib/mediasoup.js';
+import { config } from '@/constant/mediasoupConfig.js';
 import { ConsumerParams, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
 import { TrackType } from '@/type/track.js';
 import { computeIfAbsent } from '@/util/map.js';
