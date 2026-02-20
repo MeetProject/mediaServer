@@ -12,7 +12,7 @@ import { getWorker } from './worker.js';
 import { config } from '@/constant/mediasoupConfig.js';
 import { ConsumerParams, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
 import { TrackType } from '@/type/track.js';
-import { computeIfAbsent } from '@/util/map.js';
+import { computeIfAbsent, runWithLock } from '@/util/map.js';
 
 export const mediasoup = () => {
 	const rooms = new Map<string, Room>();
@@ -31,8 +31,14 @@ export const mediasoup = () => {
 		rooms.set(roomId, { participants: new Set<string>(), router });
 	};
 
-	const getCapabilities = (roomId: string, userId: string) => {
-		const room = rooms.get(roomId);
+	const getCapabilities = async (roomId: string, userId: string) => {
+		const room = await runWithLock(rooms, async () => {
+			if (!rooms.has(roomId)) {
+				await createRoom(roomId);
+			}
+			return rooms.get(roomId);
+		});
+
 		if (!room) {
 			return null;
 		}

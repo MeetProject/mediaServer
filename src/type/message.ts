@@ -8,10 +8,6 @@ interface MessageBase {
 	userId: string;
 }
 
-export interface CreateRoomResponse {
-	roomId: string;
-}
-
 export interface CreateRoomPayload {
 	roomId: string;
 }

@@ -1,6 +1,6 @@
 const locks = new Map<unknown, Promise<unknown>>();
 
-const runWithLock = async <T>(resource: unknown, task: () => Promise<T>): Promise<T> => {
+export const runWithLock = async <T>(resource: unknown, task: () => Promise<T>): Promise<T> => {
 	const previousPromise = locks.get(resource) || Promise.resolve();
 	const executeTask = async (): Promise<T> => {
 		try {

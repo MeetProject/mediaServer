@@ -5,7 +5,6 @@ import {
 	CapabilitiesResponse,
 	ConsumerParamsPayload,
 	ConsumerParamsResponse,
-	CreateRoomResponse,
 	DtlsConnectPayload,
 	DtlsConnectResponse,
 	DtlsPayload,
@@ -24,27 +23,12 @@ interface HandlerProps {
 }
 
 export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
-	const {
-		connectTransport,
-		createProducer,
-		createRoom,
-		getCapabilities,
-		getConsumerParams,
-		getTransportOption,
-		leave,
-		resume,
-	} = mediasoup();
+	const { connectTransport, createProducer, getCapabilities, getConsumerParams, getTransportOption, leave, resume } =
+		mediasoup();
 
-	const handleCreateRoom = async (data: CreateRoomResponse) => {
-		const { roomId } = data;
-
-		await createRoom(roomId);
-		publish('/app/media/room', { roomId });
-	};
-
-	const handleCapabilities = (data: CapabilitiesResponse) => {
+	const handleCapabilities = async (data: CapabilitiesResponse) => {
 		const { correlationId, roomId, userId } = data;
-		const capabilities = getCapabilities(roomId, userId);
+		const capabilities = await getCapabilities(roomId, userId);
 
 		if (capabilities) {
 			publish<CapabilitiesPayload>('/app/media/capabilities', {
@@ -140,7 +124,6 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const onConnect = () => {
-		subscribe<CreateRoomResponse>('/user/media/room', handleCreateRoom);
 		subscribe<CapabilitiesResponse>('/user/media/capabilites', handleCapabilities);
 		subscribe<DtlsResponse>('/user/media/dtls', handleDtls);
 		subscribe<DtlsConnectResponse>('/user/media/connect', handleDtlsConnect);
