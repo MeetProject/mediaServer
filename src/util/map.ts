@@ -1,25 +1,23 @@
-const pendingQueue = new Map<unknown, Set<string>>();
+const locks = new Map<unknown, Promise<unknown>>();
 
-const computeIfAbsentInternal = async <K1, K2, V>(
-	map: Map<K1, Map<K2, V>>,
-	key1: K1,
-	key2: K2,
-	value: () => Promise<V> | V,
-): Promise<Map<K2, V>> => {
-	if (!map.has(key1)) {
-		map.set(key1, new Map<K2, V>());
-	}
+const runWithLock = async <T>(resource: unknown, task: () => Promise<T>): Promise<T> => {
+	const previousPromise = locks.get(resource) || Promise.resolve();
+	const executeTask = async (): Promise<T> => {
+		try {
+			await previousPromise;
+			return await task();
+		} finally {
+			if (locks.get(resource) === currentPromise) {
+				locks.delete(resource);
+			}
+		}
+	};
 
-	const innerMap = map.get(key1)!;
+	const currentPromise = executeTask();
 
-	if (innerMap.has(key2)) {
-		return innerMap;
-	}
+	locks.set(resource, currentPromise);
 
-	const innerValue = await value();
-	innerMap.set(key2, innerValue);
-
-	return innerMap;
+	return currentPromise;
 };
 
 export const computeIfAbsent = async <K1, K2, V>(
@@ -28,23 +26,19 @@ export const computeIfAbsent = async <K1, K2, V>(
 	key2: K2,
 	value: () => Promise<V> | V,
 ): Promise<Map<K2, V>> => {
-	if (!pendingQueue.has(map)) {
-		pendingQueue.set(map, new Set<string>());
+	const existingInnerMap = map.get(key1);
+
+	if (existingInnerMap?.has(key2)) {
+		return existingInnerMap;
 	}
 
-	const queue = pendingQueue.get(map)!;
-	const taskId = crypto.randomUUID();
-	queue.add(taskId);
+	return await runWithLock(map, async () => {
+		const innerMap = map.get(key1) ?? map.set(key1, new Map<K2, V>()).get(key1)!;
 
-	try {
-		while (queue.values().next().value !== taskId) {
-			await new Promise((resolve) => setTimeout(resolve, 10));
+		if (!innerMap.has(key2)) {
+			innerMap.set(key2, await value());
 		}
-		return await computeIfAbsentInternal(map, key1, key2, value);
-	} finally {
-		queue.delete(taskId);
-		if (queue.size === 0) {
-			pendingQueue.delete(map);
-		}
-	}
+
+		return innerMap;
+	});
 };

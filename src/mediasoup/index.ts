@@ -31,12 +31,12 @@ export const mediasoup = () => {
 		rooms.set(roomId, { participants: new Set<string>(), router });
 	};
 
-	const getCapabilities = (roomId: string) => {
+	const getCapabilities = (roomId: string, userId: string) => {
 		const room = rooms.get(roomId);
 		if (!room) {
 			return null;
 		}
-
+		room.participants.add(userId);
 		return room.router.rtpCapabilities;
 	};
 
@@ -140,6 +140,7 @@ export const mediasoup = () => {
 
 			consumer.on('transportclose', () => {
 				consumer.close();
+				consumers.get(userId)?.delete(consumer.id);
 			});
 
 			await computeIfAbsent(consumers, userId, consumer.id, () => consumer);
