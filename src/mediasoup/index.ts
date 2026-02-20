@@ -9,7 +9,7 @@ import {
 } from 'mediasoup/types';
 
 import { getWorker } from './worker.js';
-import { config } from '@/constant/mediasoupConfig.js';
+import { MEDIASOUP_CONFIG } from '@/constant/mediasoupConfig.js';
 import { ConsumerParams, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
 import { TrackType } from '@/type/track.js';
 import { computeIfAbsent, runWithLock } from '@/util/map.js';
@@ -27,7 +27,7 @@ export const mediasoup = () => {
 
 		const worker = getWorker();
 
-		const router = await worker.createRouter(config.mediasoup.router);
+		const router = await worker.createRouter(MEDIASOUP_CONFIG.ROUTER);
 		rooms.set(roomId, { participants: new Set<string>(), router });
 	};
 
@@ -56,7 +56,7 @@ export const mediasoup = () => {
 			transports,
 			userId,
 			direction,
-			async () => await router.createWebRtcTransport(config.mediasoup.webRtcTransport),
+			async () => await router.createWebRtcTransport(MEDIASOUP_CONFIG.WEBRTC_TRANSPORT),
 		);
 
 		const transport = transportMap.get(direction);

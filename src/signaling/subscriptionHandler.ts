@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/no-duplicate-string */
+import { MEDIA_ROUTES } from '@/constant/message.js';
 import { mediasoup } from '@/mediasoup/index.js';
 import {
 	CapabilitiesPayload,
@@ -31,7 +31,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		const capabilities = await getCapabilities(roomId, userId);
 
 		if (capabilities) {
-			publish<CapabilitiesPayload>('/app/media/capabilities', {
+			publish<CapabilitiesPayload>(MEDIA_ROUTES.SEND.CAPABILITIES, {
 				capabilities,
 				correlationId,
 				userId,
@@ -39,7 +39,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 			return;
 		}
 
-		publish<ErrorPayload>('/app/media/error', { correlationId, userId });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleDtls = async (data: DtlsResponse) => {
@@ -47,7 +47,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		const options = await getTransportOption(roomId, userId, direction);
 
 		if (options) {
-			publish<DtlsPayload>('/app/media/dtls', {
+			publish<DtlsPayload>(MEDIA_ROUTES.SEND.DTLS, {
 				correlationId,
 				options,
 				userId,
@@ -55,7 +55,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 			return;
 		}
 
-		publish<ErrorPayload>('/app/media/error', { correlationId, userId });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleDtlsConnect = async (data: DtlsConnectResponse) => {
@@ -63,14 +63,14 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		const flag = await connectTransport(userId, direction, dtlsParameters);
 
 		if (flag) {
-			publish<DtlsConnectPayload>('/app/media/connect', {
+			publish<DtlsConnectPayload>(MEDIA_ROUTES.SEND.DTLS_CONNECT, {
 				correlationId,
 				userId,
 			});
 			return;
 		}
 
-		publish<ErrorPayload>('/app/media/error', { correlationId, userId });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleRtls = async (data: RtlsResponse) => {
@@ -78,14 +78,14 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		const producerId = await createProducer(userId, rtpParameters, appData, kind);
 
 		if (producerId) {
-			publish<RtlsPayload>('/app/media/rtls', {
+			publish<RtlsPayload>(MEDIA_ROUTES.SEND.RTLS, {
 				correlationId,
 				producerId,
 				userId,
 			});
 			return;
 		}
-		publish<ErrorPayload>('/app/media/error', { correlationId, userId });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleConsumerParams = async (data: ConsumerParamsResponse) => {
@@ -93,7 +93,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		const consumerParams = await getConsumerParams(roomId, userId, producerId, rtpCapabilities);
 
 		if (consumerParams) {
-			publish<ConsumerParamsPayload>('/app/media/consumerParams', {
+			publish<ConsumerParamsPayload>(MEDIA_ROUTES.SEND.CONSUMER_PARAMS, {
 				consumerParams,
 				correlationId,
 				userId,
@@ -101,7 +101,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 			return;
 		}
 
-		publish<ErrorPayload>('/app/media/error', { correlationId, userId });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleResume = async (data: ResumeResponse) => {
@@ -109,13 +109,13 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		const flag = await resume(userId, consumerId);
 
 		if (flag) {
-			publish<ResumePayload>('/app/media/resume', {
+			publish<ResumePayload>(MEDIA_ROUTES.SEND.RESUME, {
 				correlationId,
 				userId,
 			});
 			return;
 		}
-		publish<ErrorPayload>('/app/media/error', { correlationId, userId });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleLeave = async (data: LeaveResponse) => {
@@ -124,13 +124,13 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const onConnect = () => {
-		subscribe<CapabilitiesResponse>('/user/media/capabilites', handleCapabilities);
-		subscribe<DtlsResponse>('/user/media/dtls', handleDtls);
-		subscribe<DtlsConnectResponse>('/user/media/connect', handleDtlsConnect);
-		subscribe<RtlsResponse>('/user/media/rtls', handleRtls);
-		subscribe<ConsumerParamsResponse>('/user/media/consumerParams', handleConsumerParams);
-		subscribe<ResumeResponse>('/user/media/resume', handleResume);
-		subscribe<LeaveResponse>('/user/media/leave', handleLeave);
+		subscribe<CapabilitiesResponse>(MEDIA_ROUTES.SUB.CAPABILITIES, handleCapabilities);
+		subscribe<DtlsResponse>(MEDIA_ROUTES.SUB.DTLS, handleDtls);
+		subscribe<DtlsConnectResponse>(MEDIA_ROUTES.SUB.DTLS_CONNECT, handleDtlsConnect);
+		subscribe<RtlsResponse>(MEDIA_ROUTES.SUB.RTLS, handleRtls);
+		subscribe<ConsumerParamsResponse>(MEDIA_ROUTES.SUB.CONSUMER_PARAMS, handleConsumerParams);
+		subscribe<ResumeResponse>(MEDIA_ROUTES.SUB.RESUME, handleResume);
+		subscribe<LeaveResponse>(MEDIA_ROUTES.SUB.LEAVE, handleLeave);
 	};
 
 	return { onConnect };
