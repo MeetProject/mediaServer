@@ -4,7 +4,7 @@ import { createWorker } from 'mediasoup';
 import { Worker } from 'mediasoup/types';
 import { AppData } from 'mediasoup/types';
 
-const workerStore = new Array<Worker<AppData>>();
+const workers = new Array<Worker<AppData>>();
 let nextWorkerIndex = 0;
 
 export const initWorker = async () => {
@@ -18,15 +18,15 @@ export const initWorker = async () => {
 			process.exit(1);
 		});
 
-		workerStore.push(worker);
+		workers.push(worker);
 	}
 };
 
 export const getWorker = () => {
-	if (workerStore.length === 0) {
+	if (workers.length === 0) {
 		throw new Error();
 	}
-	const worker = workerStore[nextWorkerIndex];
-	nextWorkerIndex = (nextWorkerIndex + 1) % workerStore.length;
+	const worker = workers[nextWorkerIndex];
+	nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
 	return worker;
 };

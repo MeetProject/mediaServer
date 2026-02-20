@@ -1,3 +1,9 @@
 import { initClient } from './signaling/initClient.js';
+import { initWorker } from './store/index.js';
 
-initClient();
+const startServer = async () => {
+	await initWorker();
+	initClient();
+};
+
+startServer();

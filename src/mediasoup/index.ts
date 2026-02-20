@@ -1,45 +1,34 @@
-import os from 'os';
+import {
+	AppData,
+	Consumer,
+	DtlsParameters,
+	Producer,
+	RtpCapabilities,
+	RtpParameters,
+	WebRtcTransport,
+} from 'mediasoup/types';
 
-import { createWorker } from 'mediasoup';
-import { AppData, DtlsParameters, MediaKind, RtpCapabilities, RtpParameters, Worker } from 'mediasoup/types';
-
+import { getWorker } from './worker.js';
 import { config } from '@/lib/mediasoup.js';
-import { ConsumerParams, Peer, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
+import { ConsumerParams, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
+import { TrackType } from '@/type/track.js';
+import { computeIfAbsent } from '@/util/map.js';
 
 export const mediasoup = () => {
-	const workers = new Array<Worker<AppData>>();
 	const rooms = new Map<string, Room>();
-	let nextWorkerIndex = 0;
-
-	const initWorker = async () => {
-		for (let i = 0; i < os.cpus().length; i++) {
-			const worker = await createWorker({
-				logLevel: 'warn',
-				rtcMaxPort: 10000 + i * 100 + 99,
-				rtcMinPort: 10000 + i * 100,
-			});
-			worker.on('died', () => {
-				process.exit(1);
-			});
-
-			workers.push(worker);
-		}
-	};
+	const transports = new Map<string, Map<TransportDriectionType, WebRtcTransport>>();
+	const producers = new Map<string, Map<string, Producer>>();
+	const consumers = new Map<string, Map<string, Consumer>>();
 
 	const createRoom = async (roomId: string) => {
 		if (rooms.has(roomId)) {
 			return;
 		}
 
-		if (workers.length === 0) {
-			await initWorker();
-		}
-
-		const worker = workers[nextWorkerIndex];
-		nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
+		const worker = getWorker();
 
 		const router = await worker.createRouter(config.mediasoup.router);
-		rooms.set(roomId, { participants: new Map<string, Peer>(), router });
+		rooms.set(roomId, { participants: new Set<string>(), router });
 	};
 
 	const getCapabilities = (roomId: string) => {
@@ -52,30 +41,25 @@ export const mediasoup = () => {
 	};
 
 	const getTransportOption = async (roomId: string, userId: string, direction: TransportDriectionType) => {
-		const room = rooms.get(roomId);
-		if (!room) {
+		const router = rooms.get(roomId)?.router;
+		if (!router) {
 			return null;
 		}
 
-		const user = room.participants.get(userId);
+		const transportMap = await computeIfAbsent(
+			transports,
+			userId,
+			direction,
+			async () => await router.createWebRtcTransport(config.mediasoup.webRtcTransport),
+		);
 
-		if (!user) {
-			room.participants.set(userId, { consumer: new Map(), producers: new Map(), transports: new Map() });
-		}
-
-		if (!user?.transports.get(direction)) {
-			const transport = await room.router.createWebRtcTransport(config.mediasoup.webRtcTransport);
-			user?.transports.set(direction, transport);
-		}
-
-		const transport = user?.transports.get(direction);
+		const transport = transportMap.get(direction);
 
 		if (!transport) {
-			throw new Error();
+			return null;
 		}
 
 		const { appData, dtlsParameters, iceCandidates, iceParameters, id, sctpParameters } = transport;
-
 		const options = {
 			appData,
 			direction,
@@ -90,12 +74,11 @@ export const mediasoup = () => {
 	};
 
 	const connectTransport = async (
-		roomId: string,
 		userId: string,
 		direction: TransportDriectionType,
 		dtlsParameters: DtlsParameters,
 	) => {
-		const transport = rooms.get(roomId)?.participants.get(userId)?.transports.get(direction);
+		const transport = transports.get(userId)?.get(direction);
 
 		if (!transport) {
 			return false;
@@ -105,19 +88,8 @@ export const mediasoup = () => {
 		return true;
 	};
 
-	const createProducer = async (
-		roomId: string,
-		userId: string,
-		rtpParameter: RtpParameters,
-		appData: AppData,
-		kind: MediaKind,
-	) => {
-		const user = rooms.get(roomId)?.participants.get(userId);
-		if (!user) {
-			return null;
-		}
-
-		const transport = user.transports.get('send');
+	const createProducer = async (userId: string, rtpParameter: RtpParameters, appData: AppData, kind: TrackType) => {
+		const transport = transports.get(userId)?.get('send');
 
 		if (!transport) {
 			return null;
@@ -130,7 +102,7 @@ export const mediasoup = () => {
 				rtpParameters: rtpParameter,
 			});
 
-			user.producers.set(producer.id, producer);
+			await computeIfAbsent(producers, userId, producer.id, () => producer);
 			return producer.id;
 		} catch {
 			return null;
@@ -143,54 +115,50 @@ export const mediasoup = () => {
 		producerId: string,
 		rtpCapabilities: RtpCapabilities,
 	) => {
-		const room = rooms.get(roomId);
-		if (!room) {
+		const router = rooms.get(roomId)?.router;
+		if (!router) {
 			return null;
 		}
 
-		const user = room.participants.get(userId);
-		if (!user) {
+		const transport = transports.get(userId)?.get('recv');
+
+		if (!transport || !router.canConsume({ producerId, rtpCapabilities })) {
 			return null;
 		}
 
-		const transport = user.transports.get('recv');
+		try {
+			const consumer = await transport.consume({
+				paused: true,
+				producerId,
+				rtpCapabilities,
+			});
 
-		if (!transport || !room.router.canConsume({ producerId, rtpCapabilities })) {
+			consumer.on('producerclose', () => {
+				consumer.close();
+				consumers.get(userId)?.delete(consumer.id);
+			});
+
+			consumer.on('transportclose', () => {
+				consumer.close();
+			});
+
+			await computeIfAbsent(consumers, userId, consumer.id, () => consumer);
+			const { appData, id, kind, producerId: pid, rtpParameters } = consumer;
+
+			return {
+				appData,
+				id,
+				kind,
+				producerId: pid,
+				rtpParameters,
+			} as ConsumerParams;
+		} catch {
 			return null;
 		}
-
-		const consumer = await transport.consume({
-			paused: true,
-			producerId,
-			rtpCapabilities,
-		});
-
-		consumer.on('producerclose', () => {
-			consumer.close();
-			user.consumer.delete(consumer.id);
-		});
-
-		consumer.on('transportclose', () => {
-			consumer.close();
-		});
-
-		user.consumer.set(consumer.id, consumer);
-
-		const { appData, id, kind, producerId: pid, rtpParameters } = consumer;
-
-		const options = {
-			appData,
-			id,
-			kind,
-			producerId: pid,
-			rtpParameters,
-		} as ConsumerParams;
-
-		return options;
 	};
 
-	const resume = async (roomId: string, userId: string, consumerId: string) => {
-		const consumer = rooms.get(roomId)?.participants.get(userId)?.consumer.get(consumerId);
+	const resume = async (userId: string, consumerId: string) => {
+		const consumer = consumers.get(userId)?.get(consumerId);
 
 		if (!consumer) {
 			return false;
@@ -207,12 +175,15 @@ export const mediasoup = () => {
 			return false;
 		}
 
-		const user = room.participants.get(userId);
-		if (!user) {
-			return false;
-		}
+		transports.get(userId)?.forEach((transport) => transport.close());
+		transports.delete(userId);
 
-		user.transports.forEach((transport) => transport.close());
+		consumers.get(userId)?.forEach((consumer) => consumer.close());
+		consumers.delete(userId);
+
+		producers.get(userId)?.forEach((producers) => producers.close());
+		producers.delete(userId);
+
 		room.participants.delete(userId);
 
 		if (room.participants.size === 0) {

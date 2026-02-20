@@ -22,7 +22,7 @@ export interface Peer {
 
 export interface Room {
 	router: Router;
-	participants: Map<string, Peer>;
+	participants: Set<string>;
 }
 
 export type TransportOptions<TransportAppData extends AppData = AppData> = {
