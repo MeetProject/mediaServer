@@ -1,27 +1,15 @@
-import { Client, IMessage, StompConfig, StompSubscription } from '@stomp/stompjs';
+import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import { WebSocket } from 'ws';
 
-export const stomp = (stompConfig?: StompConfig) => {
+export const stomp = () => {
 	const client = new Client({
-		...stompConfig,
 		brokerURL: undefined,
 		webSocketFactory: () => new WebSocket('ws://localhost:8080/ws/websocket?userId=mediaServer'),
 	});
 
 	const subscription = new Map<string, StompSubscription>();
 
-	const connect = () => {
-		if (client.connected) {
-			return;
-		}
-		client.activate();
-	};
-
 	const publish = <T>(destination: string, payload?: T) => {
-		if (!client.connected) {
-			return;
-		}
-
 		client.publish({
 			body: JSON.stringify(payload),
 			destination,
@@ -42,6 +30,19 @@ export const stomp = (stompConfig?: StompConfig) => {
 		subscription.set(destination, sub);
 	};
 
+	const connect = () => {
+		if (client.connected) {
+			return;
+		}
+
+		client.activate();
+	};
+
+	const unsubscribeAll = () => {
+		subscription.forEach((sub) => sub.unsubscribe());
+		subscription.clear();
+	};
+
 	const disconnect = () => {
 		if (!client.connected) {
 			return;
@@ -53,5 +54,5 @@ export const stomp = (stompConfig?: StompConfig) => {
 		client.deactivate();
 	};
 
-	return { connect, disconnect, publish, subscribe };
+	return { client, connect, disconnect, publish, subscribe, unsubscribeAll };
 };

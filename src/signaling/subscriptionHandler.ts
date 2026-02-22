@@ -23,8 +23,16 @@ interface HandlerProps {
 }
 
 export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
-	const { connectTransport, createProducer, getCapabilities, getConsumerParams, getTransportOption, leave, resume } =
-		mediasoup();
+	const {
+		connectTransport,
+		createProducer,
+		getCapabilities,
+		getConsumerParams,
+		getTransportOption,
+		leave,
+		reset,
+		resume,
+	} = mediasoup();
 
 	const handleCapabilities = async (data: CapabilitiesResponse) => {
 		const { correlationId, roomId, userId } = data;
@@ -89,8 +97,8 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const handleConsumerParams = async (data: ConsumerParamsResponse) => {
-		const { correlationId, producerId, roomId, rtpCapabilities, userId } = data;
-		const consumerParams = await getConsumerParams(roomId, userId, producerId, rtpCapabilities);
+		const { correlationId, producerId, roomId, rtpCapabilities, targetId, userId } = data;
+		const consumerParams = await getConsumerParams(roomId, userId, targetId, producerId, rtpCapabilities);
 
 		if (consumerParams) {
 			publish<ConsumerParamsPayload>(MEDIA_ROUTES.SEND.CONSUMER_PARAMS, {
@@ -124,6 +132,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const onConnect = () => {
+		reset();
 		subscribe<CapabilitiesResponse>(MEDIA_ROUTES.SUB.CAPABILITIES, handleCapabilities);
 		subscribe<DtlsResponse>(MEDIA_ROUTES.SUB.DTLS, handleDtls);
 		subscribe<DtlsConnectResponse>(MEDIA_ROUTES.SUB.DTLS_CONNECT, handleDtlsConnect);

@@ -48,6 +48,7 @@ export interface RtlsPayload extends MessageBase {
 
 export interface ConsumerParamsResponse extends MessageBase {
 	roomId: string;
+	targetId: string;
 	producerId: string;
 	rtpCapabilities: RtpCapabilities;
 }

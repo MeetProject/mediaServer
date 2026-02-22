@@ -118,6 +118,7 @@ export const mediasoup = () => {
 	const getConsumerParams = async (
 		roomId: string,
 		userId: string,
+		targetId: string,
 		producerId: string,
 		rtpCapabilities: RtpCapabilities,
 	) => {
@@ -132,8 +133,11 @@ export const mediasoup = () => {
 			return null;
 		}
 
+		const targetAppData = producers.get(targetId)?.get(producerId)?.appData ?? {};
+
 		try {
 			const consumer = await transport.consume({
+				appData: targetAppData,
 				paused: true,
 				producerId,
 				rtpCapabilities,
@@ -201,6 +205,14 @@ export const mediasoup = () => {
 		return true;
 	};
 
+	const reset = () => {
+		rooms.forEach((r) => r.router.close());
+		rooms.clear();
+		transports.clear();
+		producers.clear();
+		consumers.clear();
+	};
+
 	return {
 		connectTransport,
 		createProducer,
@@ -209,6 +221,7 @@ export const mediasoup = () => {
 		getConsumerParams,
 		getTransportOption,
 		leave,
+		reset,
 		resume,
 	};
 };
