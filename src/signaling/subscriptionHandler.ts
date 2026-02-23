@@ -11,6 +11,8 @@ import {
 	DtlsResponse,
 	ErrorPayload,
 	LeaveResponse,
+	ProducerMutePayload,
+	ProducerMuteResponse,
 	ResumePayload,
 	ResumeResponse,
 	RtlsPayload,
@@ -30,6 +32,8 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		getConsumerParams,
 		getTransportOption,
 		leave,
+		producerPause,
+		producerResume,
 		reset,
 		resume,
 	} = mediasoup();
@@ -126,6 +130,34 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
+	const handleProducerPause = async (data: ProducerMuteResponse) => {
+		const { correlationId, producerId, userId } = data;
+		const flag = producerPause(userId, producerId);
+
+		if (flag) {
+			publish<ProducerMutePayload>(MEDIA_ROUTES.SEND.PRODUCER_PAUSE, {
+				correlationId,
+				userId,
+			});
+			return;
+		}
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+	};
+
+	const handleProducerResume = async (data: ProducerMuteResponse) => {
+		const { correlationId, producerId, userId } = data;
+		const flag = producerResume(userId, producerId);
+
+		if (flag) {
+			publish<ProducerMutePayload>(MEDIA_ROUTES.SEND.PRODUCER_RESUME, {
+				correlationId,
+				userId,
+			});
+			return;
+		}
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+	};
+
 	const handleLeave = async (data: LeaveResponse) => {
 		const { roomId, userId } = data;
 		leave(roomId, userId);
@@ -139,6 +171,8 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		subscribe<RtlsResponse>(MEDIA_ROUTES.SUB.RTLS, handleRtls);
 		subscribe<ConsumerParamsResponse>(MEDIA_ROUTES.SUB.CONSUMER_PARAMS, handleConsumerParams);
 		subscribe<ResumeResponse>(MEDIA_ROUTES.SUB.RESUME, handleResume);
+		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_PAUSE, handleProducerPause);
+		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_RESUME, handleProducerResume);
 		subscribe<LeaveResponse>(MEDIA_ROUTES.SUB.LEAVE, handleLeave);
 	};
 

@@ -63,6 +63,12 @@ export interface ResumeResponse extends MessageBase {
 
 export interface ResumePayload extends MessageBase {}
 
+export interface ProducerMuteResponse extends MessageBase {
+	producerId: string;
+}
+
+export interface ProducerMutePayload extends MessageBase {}
+
 export interface LeaveResponse {
 	roomId: string;
 	userId: string;

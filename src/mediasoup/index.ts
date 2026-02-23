@@ -179,6 +179,28 @@ export const mediasoup = () => {
 		return true;
 	};
 
+	const producerPause = (userId: string, producerId: string) => {
+		const producer = producers.get(userId)?.get(producerId);
+
+		if (!producer) {
+			return false;
+		}
+
+		producer.pause();
+		return true;
+	};
+
+	const producerResume = (userId: string, producerId: string) => {
+		const producer = producers.get(userId)?.get(producerId);
+
+		if (!producer) {
+			return false;
+		}
+
+		producer.resume();
+		return true;
+	};
+
 	const leave = (roomId: string, userId: string) => {
 		const room = rooms.get(roomId);
 
@@ -221,6 +243,8 @@ export const mediasoup = () => {
 		getConsumerParams,
 		getTransportOption,
 		leave,
+		producerPause,
+		producerResume,
 		reset,
 		resume,
 	};
