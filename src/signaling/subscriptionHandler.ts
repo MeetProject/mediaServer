@@ -13,6 +13,7 @@ import {
 	LeaveResponse,
 	ProducerMutePayload,
 	ProducerMuteResponse,
+	ProducerRemoveResponse,
 	ResumePayload,
 	ResumeResponse,
 	RtlsPayload,
@@ -33,6 +34,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		getTransportOption,
 		leave,
 		producerPause,
+		producerRemove,
 		producerResume,
 		reset,
 		resume,
@@ -158,6 +160,11 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
+	const handleProducerRemove = async (data: ProducerRemoveResponse) => {
+		const { producerId, userId } = data;
+		producerRemove(userId, producerId);
+	};
+
 	const handleLeave = async (data: LeaveResponse) => {
 		const { roomId, userId } = data;
 		leave(roomId, userId);
@@ -172,6 +179,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		subscribe<ConsumerParamsResponse>(MEDIA_ROUTES.SUB.CONSUMER_PARAMS, handleConsumerParams);
 		subscribe<ResumeResponse>(MEDIA_ROUTES.SUB.RESUME, handleResume);
 		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_PAUSE, handleProducerPause);
+		subscribe<ProducerRemoveResponse>(MEDIA_ROUTES.SUB.PRODUCER_REMOVE, handleProducerRemove);
 		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_RESUME, handleProducerResume);
 		subscribe<LeaveResponse>(MEDIA_ROUTES.SUB.LEAVE, handleLeave);
 	};

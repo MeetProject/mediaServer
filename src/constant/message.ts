@@ -20,6 +20,7 @@ export const MEDIA_ROUTES = {
 		DTLS_CONNECT: `${USER_PREFIX}/dtlsconnect`,
 		LEAVE: `${USER_PREFIX}/leave`,
 		PRODUCER_PAUSE: `${USER_PREFIX}/producer/pause`,
+		PRODUCER_REMOVE: `${USER_PREFIX}/producer/remove`,
 		PRODUCER_RESUME: `${USER_PREFIX}/producer/resume`,
 		RESUME: `${USER_PREFIX}/resume`,
 		RTLS: `${USER_PREFIX}/rtls`,

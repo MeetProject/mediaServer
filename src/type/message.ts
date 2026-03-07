@@ -67,6 +67,11 @@ export interface ProducerMuteResponse extends MessageBase {
 	producerId: string;
 }
 
+export interface ProducerRemoveResponse {
+	userId: string;
+	producerId: string;
+}
+
 export interface ProducerMutePayload extends MessageBase {}
 
 export interface LeaveResponse {

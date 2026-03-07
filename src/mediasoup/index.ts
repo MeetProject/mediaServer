@@ -146,11 +146,19 @@ export const mediasoup = () => {
 			consumer.on('producerclose', () => {
 				consumer.close();
 				consumers.get(userId)?.delete(consumer.id);
+
+				if (consumers.get(userId)?.size === 0) {
+					consumers.delete(userId);
+				}
 			});
 
 			consumer.on('transportclose', () => {
 				consumer.close();
 				consumers.get(userId)?.delete(consumer.id);
+
+				if (consumers.get(userId)?.size === 0) {
+					consumers.delete(userId);
+				}
 			});
 
 			await computeIfAbsent(consumers, userId, consumer.id, () => consumer);
@@ -201,6 +209,21 @@ export const mediasoup = () => {
 		return true;
 	};
 
+	const producerRemove = (userId: string, producerId: string) => {
+		const userProducers = producers.get(userId);
+		const producer = userProducers?.get(producerId);
+		if (!userProducers || !producer) {
+			return;
+		}
+
+		producer.close();
+		userProducers.delete(producerId);
+
+		if (userProducers.size === 0) {
+			producers.delete(userId);
+		}
+	};
+
 	const leave = (roomId: string, userId: string) => {
 		const room = rooms.get(roomId);
 
@@ -244,6 +267,7 @@ export const mediasoup = () => {
 		getTransportOption,
 		leave,
 		producerPause,
+		producerRemove,
 		producerResume,
 		reset,
 		resume,
