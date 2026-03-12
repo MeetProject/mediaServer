@@ -41,19 +41,23 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	} = mediasoup();
 
 	const handleCapabilities = async (data: CapabilitiesResponse) => {
-		const { correlationId, roomId, userId } = data;
-		const capabilities = await getCapabilities(roomId, userId);
+		try {
+			const { correlationId, roomId, userId } = data;
+			const capabilities = await getCapabilities(roomId, userId);
 
-		if (capabilities) {
-			publish<CapabilitiesPayload>(MEDIA_ROUTES.SEND.CAPABILITIES, {
-				capabilities,
-				correlationId,
-				userId,
-			});
-			return;
+			if (capabilities) {
+				publish<CapabilitiesPayload>(MEDIA_ROUTES.SEND.CAPABILITIES, {
+					capabilities,
+					correlationId,
+					userId,
+				});
+				return;
+			}
+
+			publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+		} catch (e) {
+			console.log('capability', e);
 		}
-
-		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleDtls = async (data: DtlsResponse) => {
@@ -73,18 +77,22 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const handleDtlsConnect = async (data: DtlsConnectResponse) => {
-		const { correlationId, direction, dtlsParameters, userId } = data;
-		const flag = await connectTransport(userId, direction, dtlsParameters);
+		try {
+			const { correlationId, direction, dtlsParameters, userId } = data;
+			const flag = await connectTransport(userId, direction, dtlsParameters);
 
-		if (flag) {
-			publish<DtlsConnectPayload>(MEDIA_ROUTES.SEND.DTLS_CONNECT, {
-				correlationId,
-				userId,
-			});
-			return;
+			if (flag) {
+				publish<DtlsConnectPayload>(MEDIA_ROUTES.SEND.DTLS_CONNECT, {
+					correlationId,
+					userId,
+				});
+				return;
+			}
+
+			publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+		} catch (e) {
+			console.log(e);
 		}
-
-		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleRtls = async (data: RtlsResponse) => {

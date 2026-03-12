@@ -90,6 +90,7 @@ export const mediasoup = () => {
 			return false;
 		}
 
+		//error
 		await transport.connect({ dtlsParameters });
 		return true;
 	};
