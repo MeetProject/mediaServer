@@ -96,8 +96,8 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const handleRtls = async (data: RtlsResponse) => {
-		const { appData, correlationId, kind, rtpParameters, userId } = data;
-		const producerId = await createProducer(userId, rtpParameters, appData, kind);
+		const { appData, correlationId, kind, roomId, rtpParameters, userId } = data;
+		const producerId = await createProducer(userId, roomId, rtpParameters, appData, kind);
 
 		if (producerId) {
 			publish<RtlsPayload>(MEDIA_ROUTES.SEND.RTLS, {
@@ -111,8 +111,8 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const handleConsumerParams = async (data: ConsumerParamsResponse) => {
-		const { correlationId, producerId, roomId, rtpCapabilities, targetId, userId } = data;
-		const consumerParams = await getConsumerParams(roomId, userId, targetId, producerId, rtpCapabilities);
+		const { correlationId, producerId, roomId, rtpCapabilities, userId } = data;
+		const consumerParams = await getConsumerParams(roomId, userId, producerId, rtpCapabilities);
 
 		if (consumerParams) {
 			publish<ConsumerParamsPayload>(MEDIA_ROUTES.SEND.CONSUMER_PARAMS, {
@@ -128,7 +128,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 
 	const handleResume = async (data: ResumeResponse) => {
 		const { consumerId, correlationId, userId } = data;
-		const flag = await resume(userId, consumerId);
+		const flag = await resume(consumerId);
 
 		if (flag) {
 			publish<ResumePayload>(MEDIA_ROUTES.SEND.RESUME, {
@@ -142,7 +142,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 
 	const handleProducerPause = async (data: ProducerMuteResponse) => {
 		const { correlationId, producerId, userId } = data;
-		const flag = producerPause(userId, producerId);
+		const flag = producerPause(producerId);
 
 		if (flag) {
 			publish<ProducerMutePayload>(MEDIA_ROUTES.SEND.PRODUCER_PAUSE, {
@@ -156,7 +156,7 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 
 	const handleProducerResume = async (data: ProducerMuteResponse) => {
 		const { correlationId, producerId, userId } = data;
-		const flag = producerResume(userId, producerId);
+		const flag = producerResume(producerId);
 
 		if (flag) {
 			publish<ProducerMutePayload>(MEDIA_ROUTES.SEND.PRODUCER_RESUME, {

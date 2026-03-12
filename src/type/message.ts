@@ -40,6 +40,7 @@ export interface RtlsResponse extends MessageBase {
 	appData: AppData;
 	kind: TrackType;
 	rtpParameters: RtpParameters;
+	roomId: string;
 }
 
 export interface RtlsPayload extends MessageBase {
@@ -48,7 +49,6 @@ export interface RtlsPayload extends MessageBase {
 
 export interface ConsumerParamsResponse extends MessageBase {
 	roomId: string;
-	targetId: string;
 	producerId: string;
 	rtpCapabilities: RtpCapabilities;
 }

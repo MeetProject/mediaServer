@@ -7,12 +7,14 @@ import {
 	AppData,
 	RtpParameters,
 	MediaKind,
+	AudioLevelObserver,
 } from 'mediasoup/types';
 
 export type TransportDriectionType = 'send' | 'recv';
 
 export interface Room {
 	router: Router;
+	audioObserver: AudioLevelObserver;
 	participants: Set<string>;
 }
 
