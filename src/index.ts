@@ -1,3 +1,9 @@
-import { initClient } from '@/signaling/initClient.js';
+import { initWorker } from './mediasoup/worker.js';
+import { initClient } from './signaling/initClient.js';
 
-initClient();
+const startServer = async () => {
+	await initWorker();
+	initClient();
+};
+
+startServer();

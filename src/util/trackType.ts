@@ -1,15 +1,8 @@
-import { StreamType } from '@/type/media.js';
+import { StreamTrackType, TrackType } from '@/type/track.js';
 
-export const getTrackType = (streamType: StreamType, trackKind: string) => {
-	if (streamType === 'USER') {
-		if (trackKind === 'audio') {
-			return 'audio';
-		}
-		return 'video';
+export const getTrackType = (type: StreamTrackType): TrackType => {
+	if (type.includes('audio')) {
+		return 'audio';
 	}
-
-	if (trackKind === 'audio') {
-		return 'screenAudio';
-	}
-	return 'screenVideo';
+	return 'video';
 };

@@ -1,88 +1,194 @@
-import WebSocket from 'ws';
-
-import { signalSender } from '@/signaling/signerSender.js';
-import { addParticipant, getPeerConnection, updatePeerConnection, updateUserTrackInfo } from '@/store/index.js';
+import { MEDIA_ROUTES } from '@/constant/message.js';
+import { mediasoup } from '@/mediasoup/index.js';
 import {
-	ClosePeerConnectionProps,
-	CreatePeerConnectionProps,
-	RegisterIceProps,
-	RegisterRemoteSdpProps,
-} from '@/type/peerConnection.js';
-import {
-	ParticipantResponseType,
-	AnswerResponseType,
-	IceResponseType,
-	LeaveResponseType,
-	IcePayloadType,
-} from '@/type/signal.js';
+	CapabilitiesPayload,
+	CapabilitiesResponse,
+	ConsumerParamsPayload,
+	ConsumerParamsResponse,
+	ConsumerPauseResponse,
+	ConsumerResumeResponse,
+	DtlsConnectPayload,
+	DtlsConnectResponse,
+	DtlsPayload,
+	DtlsResponse,
+	ErrorPayload,
+	LeaveResponse,
+	ProducerMutePayload,
+	ProducerMuteResponse,
+	ProducerRemoveResponse,
+	RtlsPayload,
+	RtlsResponse,
+} from '@/type/message.js';
 
-interface SignalHandlerProps {
-	closePeerConnection: (props: ClosePeerConnectionProps) => Promise<void>;
-	createPeerConnection: (props: CreatePeerConnectionProps) => Promise<RTCPeerConnection>;
-	registerRemoteIce: (props: RegisterIceProps) => Promise<void>;
-	registerAnswerSdp: (props: RegisterRemoteSdpProps) => Promise<void>;
+interface HandlerProps {
+	subscribe: <T>(destination: string, callback: (response: T) => void | Promise<void>) => void;
+	publish: <T>(destination: string, payload?: T | undefined) => void;
 }
 
-export const subscribeHandler = ({
-	closePeerConnection,
-	createPeerConnection,
-	registerAnswerSdp,
-	registerRemoteIce,
-}: SignalHandlerProps) => {
-	const handleParticipant = async (response: ParticipantResponseType) => {
-		const { roomId, userId } = response;
+export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
+	const {
+		connectTransport,
+		consumerPause,
+		consumerResume,
+		createProducer,
+		getCapabilities,
+		getConsumerParams,
+		getTransportOption,
+		leave,
+		producerPause,
+		producerRemove,
+		producerResume,
+		reset,
+	} = mediasoup();
 
-		await createPeerConnection({
-			roomId,
-			userId,
-		});
+	const handleCapabilities = async (data: CapabilitiesResponse) => {
+		try {
+			const { correlationId, roomId, userId } = data;
+			const capabilities = await getCapabilities(roomId, userId);
 
-		await addParticipant(roomId, userId);
+			if (capabilities) {
+				publish<CapabilitiesPayload>(MEDIA_ROUTES.SEND.CAPABILITIES, {
+					capabilities,
+					correlationId,
+					userId,
+				});
+				return;
+			}
+
+			publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+		} catch (e) {
+			console.log('capability', e);
+		}
 	};
 
-	const handleAnswer = async (client: WebSocket, response: AnswerResponseType) => {
-		const { sdp, trackInfo, userId } = response;
-		const parsedRemoteSdp = JSON.parse(sdp) as RTCSessionDescriptionInit;
-		await Promise.all(
-			Object.entries(trackInfo).map(async ([mid, track]) => {
-				await updateUserTrackInfo(userId, mid, track);
-			}),
-		);
+	const handleDtls = async (data: DtlsResponse) => {
+		const { correlationId, direction, roomId, userId } = data;
+		const options = await getTransportOption(roomId, userId, direction);
 
-		await registerAnswerSdp({ sdp: parsedRemoteSdp, userId });
-		const data = await getPeerConnection(userId);
-		if (!data) {
+		if (options) {
+			publish<DtlsPayload>(MEDIA_ROUTES.SEND.DTLS, {
+				correlationId,
+				options,
+				userId,
+			});
 			return;
 		}
 
-		await updatePeerConnection(userId, { iceQueue: [], makingOffer: false, remoteSet: true });
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+	};
 
-		const { sendIce } = signalSender({ client });
+	const handleDtlsConnect = async (data: DtlsConnectResponse) => {
+		try {
+			const { correlationId, direction, dtlsParameters, userId } = data;
+			const flag = await connectTransport(userId, direction, dtlsParameters);
 
-		data.iceQueue.forEach((ice) => {
-			const payload: IcePayloadType = {
-				ice: JSON.stringify(ice),
+			if (flag) {
+				publish<DtlsConnectPayload>(MEDIA_ROUTES.SEND.DTLS_CONNECT, {
+					correlationId,
+					userId,
+				});
+				return;
+			}
+
+			publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+		} catch (e) {
+			console.log(e);
+		}
+	};
+
+	const handleRtls = async (data: RtlsResponse) => {
+		const { appData, correlationId, kind, roomId, rtpParameters, userId } = data;
+		const producerId = await createProducer(userId, roomId, rtpParameters, appData, kind);
+
+		if (producerId) {
+			publish<RtlsPayload>(MEDIA_ROUTES.SEND.RTLS, {
+				correlationId,
+				producerId,
 				userId,
-			};
-			sendIce(payload);
-		});
+			});
+			return;
+		}
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
-	const handleIce = async (response: IceResponseType) => {
-		const { ice, userId } = response;
-		const parsedIce = JSON.parse(ice) as RTCIceCandidateInit;
-		await registerRemoteIce({ ice: parsedIce, userId });
+	const handleConsumerParams = async (data: ConsumerParamsResponse) => {
+		const { correlationId, producerId, roomId, rtpCapabilities, userId } = data;
+		const consumerParams = await getConsumerParams(roomId, userId, producerId, rtpCapabilities);
+
+		if (consumerParams) {
+			publish<ConsumerParamsPayload>(MEDIA_ROUTES.SEND.CONSUMER_PARAMS, {
+				consumerParams,
+				correlationId,
+				userId,
+			});
+			return;
+		}
+
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
-	const handleLeave = async (response: LeaveResponseType) => {
-		const { roomId, userId } = response;
-		await closePeerConnection({ roomId, userId });
+	const handleConsumerResume = async (data: ConsumerResumeResponse) => {
+		const { consumerId } = data;
+		await consumerResume(consumerId);
 	};
 
-	return {
-		handleAnswer,
-		handleIce,
-		handleLeave,
-		handleParticipant,
+	const handleConsumerPause = async (data: ConsumerPauseResponse) => {
+		const { consumerId } = data;
+		await consumerPause(consumerId);
 	};
+
+	const handleProducerPause = async (data: ProducerMuteResponse) => {
+		const { correlationId, producerId, userId } = data;
+		const flag = producerPause(producerId);
+
+		if (flag) {
+			publish<ProducerMutePayload>(MEDIA_ROUTES.SEND.PRODUCER_PAUSE, {
+				correlationId,
+				userId,
+			});
+			return;
+		}
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+	};
+
+	const handleProducerResume = async (data: ProducerMuteResponse) => {
+		const { correlationId, producerId, userId } = data;
+		const flag = producerResume(producerId);
+
+		if (flag) {
+			publish<ProducerMutePayload>(MEDIA_ROUTES.SEND.PRODUCER_RESUME, {
+				correlationId,
+				userId,
+			});
+			return;
+		}
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+	};
+
+	const handleProducerRemove = async (data: ProducerRemoveResponse) => {
+		const { producerId, userId } = data;
+		producerRemove(userId, producerId);
+	};
+
+	const handleLeave = async (data: LeaveResponse) => {
+		const { roomId, userId } = data;
+		leave(roomId, userId);
+	};
+
+	const onConnect = () => {
+		reset();
+		subscribe<CapabilitiesResponse>(MEDIA_ROUTES.SUB.CAPABILITIES, handleCapabilities);
+		subscribe<DtlsResponse>(MEDIA_ROUTES.SUB.DTLS, handleDtls);
+		subscribe<DtlsConnectResponse>(MEDIA_ROUTES.SUB.DTLS_CONNECT, handleDtlsConnect);
+		subscribe<RtlsResponse>(MEDIA_ROUTES.SUB.RTLS, handleRtls);
+		subscribe<ConsumerParamsResponse>(MEDIA_ROUTES.SUB.CONSUMER_PARAMS, handleConsumerParams);
+		subscribe<ConsumerResumeResponse>(MEDIA_ROUTES.SUB.CONSUMER_RESUME, handleConsumerResume);
+		subscribe<ConsumerPauseResponse>(MEDIA_ROUTES.SUB.CONSUMER_PAUSE, handleConsumerPause);
+		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_PAUSE, handleProducerPause);
+		subscribe<ProducerRemoveResponse>(MEDIA_ROUTES.SUB.PRODUCER_REMOVE, handleProducerRemove);
+		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_RESUME, handleProducerResume);
+		subscribe<LeaveResponse>(MEDIA_ROUTES.SUB.LEAVE, handleLeave);
+	};
+
+	return { onConnect };
 };
