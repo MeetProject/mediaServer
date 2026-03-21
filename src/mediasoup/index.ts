@@ -241,7 +241,7 @@ export const mediasoup = () => {
 		}
 	};
 
-	const resume = async (consumerId: string) => {
+	const consumerResume = async (consumerId: string) => {
 		const consumer = consumers.get(consumerId);
 
 		if (!consumer) {
@@ -249,6 +249,17 @@ export const mediasoup = () => {
 		}
 
 		await consumer.resume();
+		return true;
+	};
+
+	const consumerPause = async (consumerId: string) => {
+		const consumer = consumers.get(consumerId);
+
+		if (!consumer) {
+			return false;
+		}
+
+		await consumer.pause();
 		return true;
 	};
 
@@ -335,6 +346,8 @@ export const mediasoup = () => {
 
 	return {
 		connectTransport,
+		consumerPause,
+		consumerResume,
 		createProducer,
 		createRoom,
 		getCapabilities,
@@ -345,6 +358,5 @@ export const mediasoup = () => {
 		producerRemove,
 		producerResume,
 		reset,
-		resume,
 	};
 };

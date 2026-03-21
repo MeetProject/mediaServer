@@ -5,6 +5,8 @@ import {
 	CapabilitiesResponse,
 	ConsumerParamsPayload,
 	ConsumerParamsResponse,
+	ConsumerPauseResponse,
+	ConsumerResumeResponse,
 	DtlsConnectPayload,
 	DtlsConnectResponse,
 	DtlsPayload,
@@ -14,8 +16,6 @@ import {
 	ProducerMutePayload,
 	ProducerMuteResponse,
 	ProducerRemoveResponse,
-	ResumePayload,
-	ResumeResponse,
 	RtlsPayload,
 	RtlsResponse,
 } from '@/type/message.js';
@@ -28,6 +28,8 @@ interface HandlerProps {
 export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	const {
 		connectTransport,
+		consumerPause,
+		consumerResume,
 		createProducer,
 		getCapabilities,
 		getConsumerParams,
@@ -37,7 +39,6 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		producerRemove,
 		producerResume,
 		reset,
-		resume,
 	} = mediasoup();
 
 	const handleCapabilities = async (data: CapabilitiesResponse) => {
@@ -126,18 +127,14 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
-	const handleResume = async (data: ResumeResponse) => {
-		const { consumerId, correlationId, userId } = data;
-		const flag = await resume(consumerId);
+	const handleConsumerResume = async (data: ConsumerResumeResponse) => {
+		const { consumerId } = data;
+		await consumerResume(consumerId);
+	};
 
-		if (flag) {
-			publish<ResumePayload>(MEDIA_ROUTES.SEND.RESUME, {
-				correlationId,
-				userId,
-			});
-			return;
-		}
-		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
+	const handleConsumerPause = async (data: ConsumerPauseResponse) => {
+		const { consumerId } = data;
+		await consumerPause(consumerId);
 	};
 
 	const handleProducerPause = async (data: ProducerMuteResponse) => {
@@ -185,7 +182,8 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		subscribe<DtlsConnectResponse>(MEDIA_ROUTES.SUB.DTLS_CONNECT, handleDtlsConnect);
 		subscribe<RtlsResponse>(MEDIA_ROUTES.SUB.RTLS, handleRtls);
 		subscribe<ConsumerParamsResponse>(MEDIA_ROUTES.SUB.CONSUMER_PARAMS, handleConsumerParams);
-		subscribe<ResumeResponse>(MEDIA_ROUTES.SUB.RESUME, handleResume);
+		subscribe<ConsumerResumeResponse>(MEDIA_ROUTES.SUB.CONSUMER_RESUME, handleConsumerResume);
+		subscribe<ConsumerPauseResponse>(MEDIA_ROUTES.SUB.CONSUMER_PAUSE, handleConsumerPause);
 		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_PAUSE, handleProducerPause);
 		subscribe<ProducerRemoveResponse>(MEDIA_ROUTES.SUB.PRODUCER_REMOVE, handleProducerRemove);
 		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_RESUME, handleProducerResume);

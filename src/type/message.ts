@@ -57,11 +57,13 @@ export interface ConsumerParamsPayload extends MessageBase {
 	consumerParams: ConsumerParams;
 }
 
-export interface ResumeResponse extends MessageBase {
+export interface ConsumerResumeResponse extends MessageBase {
 	consumerId: string;
 }
 
-export interface ResumePayload extends MessageBase {}
+export interface ConsumerPauseResponse extends MessageBase {
+	consumerId: string;
+}
 
 export interface ProducerMuteResponse extends MessageBase {
 	producerId: string;
