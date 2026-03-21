@@ -8,6 +8,7 @@ import {
 	WebRtcTransport,
 } from 'mediasoup/types';
 
+import { audioMonitor } from './audioMonitor.js';
 import { broadcast } from './broadcast.js';
 import { getWorker } from './worker.js';
 import { MEDIASOUP_CONFIG } from '@/constant/mediasoupConfig.js';
@@ -28,6 +29,7 @@ export const mediasoup = () => {
 	const consumers = new Map<string, Consumer>();
 
 	const { addResource, getConsumers, removeResource } = broadcast();
+	const { requestPause } = audioMonitor();
 
 	const createRoom = async (roomId: string) => {
 		if (rooms.has(roomId)) {
@@ -52,7 +54,14 @@ export const mediasoup = () => {
 					return;
 				}
 
-				getConsumers(v.producer.id).forEach((id) => consumers.get(id)?.pause());
+				getConsumers(v.producer.id).forEach((id) => {
+					const consumer = consumers.get(id);
+					if (!consumer) {
+						return;
+					}
+
+					requestPause(consumer);
+				});
 			});
 		});
 
