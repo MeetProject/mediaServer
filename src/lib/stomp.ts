@@ -1,10 +1,17 @@
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import { WebSocket } from 'ws';
 
+const SIGNAL_SERVER_URL = process.env.SIGNAL_SERVER_URL || 'ws://localhost:8080/ws/websocket';
+const MEDIA_SERVER_ID = process.env.MEDIA_SERVER_ID || 'mediaServer';
+const MEDIA_SERVER_TOKEN = process.env.MEDIA_SERVER_TOKEN || 'local-media-server-token';
+
 export const stomp = () => {
 	const client = new Client({
 		brokerURL: undefined,
-		webSocketFactory: () => new WebSocket('ws://localhost:8080/ws/websocket?userId=mediaServer'),
+		webSocketFactory: () =>
+			new WebSocket(
+				`${SIGNAL_SERVER_URL}?userId=${encodeURIComponent(MEDIA_SERVER_ID)}&token=${encodeURIComponent(MEDIA_SERVER_TOKEN)}`,
+			),
 	});
 
 	const subscription = new Map<string, StompSubscription>();
