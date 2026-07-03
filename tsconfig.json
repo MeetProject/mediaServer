@@ -12,12 +12,12 @@
     "types": ["node"],
     "typeRoots": ["./types", "./node_modules/@types"],
 
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
     },
 
     "sourceMap": true,
+    "rootDir": "./src",
     "outDir": "dist"
   },
   "include": ["src"]
