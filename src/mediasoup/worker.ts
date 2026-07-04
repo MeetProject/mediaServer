@@ -22,9 +22,14 @@ export const initWorker = async () => {
 
 export const getWorker = () => {
 	if (workers.length === 0) {
-		throw new Error();
+		throw new Error('worker가 초기화되지 않았습니다.');
 	}
 	const worker = workers[nextWorkerIndex];
 	nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
 	return worker;
+};
+
+export const closeWorkers = () => {
+	workers.forEach((worker) => worker.close());
+	workers.length = 0;
 };
