@@ -23,5 +23,9 @@ export const broadcast = () => {
 		return [...(resource.get(producerId) ?? [])];
 	};
 
-	return { addResource, getConsumers, removeResource };
+	const clearResource = () => {
+		resource.clear();
+	};
+
+	return { addResource, clearResource, getConsumers, removeResource };
 };
