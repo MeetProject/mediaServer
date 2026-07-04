@@ -10,11 +10,12 @@ import {
 	AudioLevelObserver,
 } from 'mediasoup/types';
 
-export type TransportDriectionType = 'send' | 'recv';
+export type TransportDirectionType = 'send' | 'recv';
 
 export interface Room {
 	router: Router;
 	audioObserver: AudioLevelObserver;
+	audioProducerIds: Set<string>;
 	participants: Set<string>;
 }
 

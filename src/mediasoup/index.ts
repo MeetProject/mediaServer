@@ -12,7 +12,7 @@ import { audioMonitor } from './audioMonitor.js';
 import { broadcast } from './broadcast.js';
 import { getWorker } from './worker.js';
 import { MEDIASOUP_CONFIG } from '@/constant/mediasoupConfig.js';
-import { ConsumerParams, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
+import { ConsumerParams, Room, TransportDirectionType, TransportOptions } from '@/type/mediasoup.js';
 import { TrackType } from '@/type/track.js';
 import { computeIfAbsent, runWithLock } from '@/util/map.js';
 
@@ -20,7 +20,7 @@ const MAX_SPEAKER = 5;
 
 export const mediasoup = () => {
 	const rooms = new Map<string, Room>();
-	const transports = new Map<string, Map<TransportDriectionType, WebRtcTransport>>();
+	const transports = new Map<string, Map<TransportDirectionType, WebRtcTransport>>();
 
 	const userProducer = new Map<string, Set<string>>();
 	const userConsumer = new Map<string, Set<string>>();
@@ -28,8 +28,34 @@ export const mediasoup = () => {
 	const producers = new Map<string, Producer>();
 	const consumers = new Map<string, Consumer>();
 
-	const { addResource, getConsumers, removeResource } = broadcast();
-	const { requestPause } = audioMonitor();
+	const { addResource, clearResource, getConsumers, removeResource } = broadcast();
+	const { cancelPause, clearPause, requestPause } = audioMonitor();
+
+	// 클라이언트가 명시적으로 pause한 consumer는 오디오 게이팅이 되살리지 않는다.
+	const clientPaused = new Set<string>();
+
+	const gateRoomAudio = (roomId: string, activeProducerIds: Set<string>) => {
+		rooms.get(roomId)?.audioProducerIds.forEach((producerId) => {
+			getConsumers(producerId).forEach((id) => {
+				const consumer = consumers.get(id);
+				if (!consumer || clientPaused.has(id)) {
+					return;
+				}
+
+				if (activeProducerIds.has(producerId)) {
+					cancelPause(id);
+					if (consumer.paused) {
+						consumer.resume().catch(() => {});
+					}
+					return;
+				}
+
+				if (!consumer.paused) {
+					requestPause(consumer);
+				}
+			});
+		});
+	};
 
 	const createRoom = async (roomId: string) => {
 		if (rooms.has(roomId)) {
@@ -42,30 +68,42 @@ export const mediasoup = () => {
 
 		const audioObserver = await router.createAudioLevelObserver({
 			interval: 2000,
-			maxEntries: 1,
+			maxEntries: MAX_SPEAKER,
 			threshold: -45,
 		});
 
 		audioObserver.on('volumes', (volumes) => {
-			const sortedVolume = volumes.sort((a, b) => b.volume - a.volume);
-			sortedVolume.forEach((v, i) => {
-				if (i < MAX_SPEAKER) {
-					getConsumers(v.producer.id).forEach((id) => consumers.get(id)?.resume());
-					return;
-				}
-
-				getConsumers(v.producer.id).forEach((id) => {
-					const consumer = consumers.get(id);
-					if (!consumer) {
-						return;
-					}
-
-					requestPause(consumer);
-				});
-			});
+			gateRoomAudio(roomId, new Set(volumes.map((v) => v.producer.id)));
 		});
 
-		rooms.set(roomId, { audioObserver, participants: new Set<string>(), router });
+		audioObserver.on('silence', () => {
+			gateRoomAudio(roomId, new Set());
+		});
+
+		rooms.set(roomId, {
+			audioObserver,
+			audioProducerIds: new Set<string>(),
+			participants: new Set<string>(),
+			router,
+		});
+	};
+
+	const cleanupUser = (userId: string) => {
+		transports.get(userId)?.forEach((transport) => transport.close());
+		transports.delete(userId);
+
+		userConsumer.get(userId)?.forEach((id) => {
+			consumers.get(id)?.close();
+			consumers.delete(id);
+		});
+
+		userProducer.get(userId)?.forEach((id) => {
+			producers.get(id)?.close();
+			producers.delete(id);
+		});
+
+		userConsumer.delete(userId);
+		userProducer.delete(userId);
 	};
 
 	const getCapabilities = async (roomId: string, userId: string) => {
@@ -79,11 +117,13 @@ export const mediasoup = () => {
 		if (!room) {
 			return null;
 		}
+
+		cleanupUser(userId);
 		room.participants.add(userId);
 		return room.router.rtpCapabilities;
 	};
 
-	const getTransportOption = async (roomId: string, userId: string, direction: TransportDriectionType) => {
+	const getTransportOption = async (roomId: string, userId: string, direction: TransportDirectionType) => {
 		const router = rooms.get(roomId)?.router;
 		if (!router) {
 			return null;
@@ -118,7 +158,7 @@ export const mediasoup = () => {
 
 	const connectTransport = async (
 		userId: string,
-		direction: TransportDriectionType,
+		direction: TransportDirectionType,
 		dtlsParameters: DtlsParameters,
 	) => {
 		const transport = transports.get(userId)?.get(direction);
@@ -151,10 +191,14 @@ export const mediasoup = () => {
 				rtpParameters: rtpParameter,
 			});
 
-			const observer = rooms.get(roomId)?.audioObserver;
+			const room = rooms.get(roomId);
 
-			if (kind === 'audio' && observer) {
-				observer.addProducer({ producerId: producer.id });
+			if (kind === 'audio' && room) {
+				room.audioObserver.addProducer({ producerId: producer.id });
+				room.audioProducerIds.add(producer.id);
+				producer.observer.on('close', () => {
+					rooms.get(roomId)?.audioProducerIds.delete(producer.id);
+				});
 			}
 
 			if (!userProducer.has(userId)) {
@@ -196,27 +240,21 @@ export const mediasoup = () => {
 				rtpCapabilities,
 			});
 
-			consumer.on('producerclose', () => {
+			const cleanupConsumer = () => {
 				consumer.close();
 				userConsumer.get(userId)?.delete(consumer.id);
 				consumers.delete(consumer.id);
 				removeResource(producerId, consumer.id);
+				clientPaused.delete(consumer.id);
+				cancelPause(consumer.id);
 
 				if (userConsumer.get(userId)?.size === 0) {
 					userConsumer.delete(userId);
 				}
-			});
+			};
 
-			consumer.on('transportclose', () => {
-				consumer.close();
-				userConsumer.get(userId)?.delete(consumer.id);
-				consumers.delete(consumer.id);
-				removeResource(producerId, consumer.id);
-
-				if (userConsumer.get(userId)?.size === 0) {
-					userConsumer.delete(userId);
-				}
-			});
+			consumer.on('producerclose', cleanupConsumer);
+			consumer.on('transportclose', cleanupConsumer);
 
 			if (!userConsumer.has(userId)) {
 				userConsumer.set(userId, new Set());
@@ -248,6 +286,7 @@ export const mediasoup = () => {
 			return false;
 		}
 
+		clientPaused.delete(consumerId);
 		await consumer.resume();
 		return true;
 	};
@@ -259,6 +298,8 @@ export const mediasoup = () => {
 			return false;
 		}
 
+		clientPaused.add(consumerId);
+		cancelPause(consumerId);
 		await consumer.pause();
 		return true;
 	};
@@ -310,21 +351,7 @@ export const mediasoup = () => {
 			return false;
 		}
 
-		transports.get(userId)?.forEach((transport) => transport.close());
-		transports.delete(userId);
-
-		userConsumer.get(userId)?.forEach((id) => {
-			consumers.get(id)?.close();
-			consumers.delete(id);
-		});
-
-		userProducer.get(userId)?.forEach((id) => {
-			producers.get(id)?.close();
-			producers.delete(id);
-		});
-
-		userConsumer.delete(userId);
-		userProducer.delete(userId);
+		cleanupUser(userId);
 
 		room.participants.delete(userId);
 
@@ -342,6 +369,11 @@ export const mediasoup = () => {
 		transports.clear();
 		producers.clear();
 		consumers.clear();
+		userProducer.clear();
+		userConsumer.clear();
+		clientPaused.clear();
+		clearPause();
+		clearResource();
 	};
 
 	return {

@@ -32,8 +32,7 @@ export const MEDIASOUP_CONFIG = {
 	} as WebRtcTransportOptions,
 
 	WORKER: {
-		logLevel: 'debug',
-		logTags: ['info', 'ice', 'dtls', 'rtp', 'srtp', 'rtcp'],
+		logLevel: 'warn',
 		rtcMaxPort: Number(process.env.RTC_MAX_PORT) || 10100,
 		rtcMinPort: Number(process.env.RTC_MIN_PORT) || 10000,
 	} as WorkerSettings,
