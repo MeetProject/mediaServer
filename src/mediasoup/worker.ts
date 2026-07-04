@@ -4,16 +4,14 @@ import { createWorker } from 'mediasoup';
 import { Worker } from 'mediasoup/types';
 import { AppData } from 'mediasoup/types';
 
+import { MEDIASOUP_CONFIG } from '@/constant/mediasoupConfig.js';
+
 const workers = new Array<Worker<AppData>>();
 let nextWorkerIndex = 0;
 
 export const initWorker = async () => {
 	for (let i = 0; i < os.cpus().length; i++) {
-		const worker = await createWorker({
-			logLevel: 'warn',
-			rtcMaxPort: 10000 + i * 100 + 99,
-			rtcMinPort: 10000 + i * 100,
-		});
+		const worker = await createWorker(MEDIASOUP_CONFIG.WORKER);
 		worker.on('died', () => {
 			process.exit(1);
 		});
