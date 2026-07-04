@@ -68,6 +68,24 @@ export const mediasoup = () => {
 		rooms.set(roomId, { audioObserver, participants: new Set<string>(), router });
 	};
 
+	const cleanupUser = (userId: string) => {
+		transports.get(userId)?.forEach((transport) => transport.close());
+		transports.delete(userId);
+
+		userConsumer.get(userId)?.forEach((id) => {
+			consumers.get(id)?.close();
+			consumers.delete(id);
+		});
+
+		userProducer.get(userId)?.forEach((id) => {
+			producers.get(id)?.close();
+			producers.delete(id);
+		});
+
+		userConsumer.delete(userId);
+		userProducer.delete(userId);
+	};
+
 	const getCapabilities = async (roomId: string, userId: string) => {
 		const room = await runWithLock(rooms, async () => {
 			if (!rooms.has(roomId)) {
@@ -79,6 +97,8 @@ export const mediasoup = () => {
 		if (!room) {
 			return null;
 		}
+
+		cleanupUser(userId);
 		room.participants.add(userId);
 		return room.router.rtpCapabilities;
 	};
@@ -310,21 +330,7 @@ export const mediasoup = () => {
 			return false;
 		}
 
-		transports.get(userId)?.forEach((transport) => transport.close());
-		transports.delete(userId);
-
-		userConsumer.get(userId)?.forEach((id) => {
-			consumers.get(id)?.close();
-			consumers.delete(id);
-		});
-
-		userProducer.get(userId)?.forEach((id) => {
-			producers.get(id)?.close();
-			producers.delete(id);
-		});
-
-		userConsumer.delete(userId);
-		userProducer.delete(userId);
+		cleanupUser(userId);
 
 		room.participants.delete(userId);
 
@@ -342,6 +348,8 @@ export const mediasoup = () => {
 		transports.clear();
 		producers.clear();
 		consumers.clear();
+		userProducer.clear();
+		userConsumer.clear();
 	};
 
 	return {
