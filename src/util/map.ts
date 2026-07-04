@@ -4,7 +4,7 @@ export const runWithLock = async <T>(resource: unknown, task: () => Promise<T>):
 	const previousPromise = locks.get(resource) || Promise.resolve();
 	const executeTask = async (): Promise<T> => {
 		try {
-			await previousPromise;
+			await previousPromise.catch(() => {});
 			return await task();
 		} finally {
 			if (locks.get(resource) === currentPromise) {
