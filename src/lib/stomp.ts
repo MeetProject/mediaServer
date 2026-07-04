@@ -8,6 +8,12 @@ const MEDIA_SERVER_TOKEN = process.env.MEDIA_SERVER_TOKEN || 'local-media-server
 export const stomp = () => {
 	const client = new Client({
 		brokerURL: undefined,
+		onStompError: (frame) => {
+			console.error('STOMP error:', frame.headers['message'], frame.body);
+		},
+		onWebSocketError: (event: unknown) => {
+			console.error('WebSocket error:', event);
+		},
 		webSocketFactory: () =>
 			new WebSocket(
 				`${SIGNAL_SERVER_URL}?userId=${encodeURIComponent(MEDIA_SERVER_ID)}&token=${encodeURIComponent(MEDIA_SERVER_TOKEN)}`,
@@ -30,8 +36,12 @@ export const stomp = () => {
 		}
 
 		const sub = client.subscribe(destination, async (message: IMessage) => {
-			const data = JSON.parse(message.body) as T;
-			await callback(data);
+			try {
+				const data = JSON.parse(message.body) as T;
+				await callback(data);
+			} catch (e) {
+				console.error(`message handling failed: ${destination}`, e);
+			}
 		});
 
 		subscription.set(destination, sub);

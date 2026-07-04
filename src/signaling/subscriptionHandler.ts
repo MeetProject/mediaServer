@@ -41,24 +41,31 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 		reset,
 	} = mediasoup();
 
-	const handleCapabilities = async (data: CapabilitiesResponse) => {
-		try {
-			const { correlationId, roomId, userId } = data;
-			const capabilities = await getCapabilities(roomId, userId);
-
-			if (capabilities) {
-				publish<CapabilitiesPayload>(MEDIA_ROUTES.SEND.CAPABILITIES, {
-					capabilities,
-					correlationId,
-					userId,
-				});
-				return;
+	const withErrorReply =
+		<T extends { correlationId: string; userId: string }>(name: string, handler: (data: T) => Promise<void>) =>
+		async (data: T) => {
+			try {
+				await handler(data);
+			} catch (e) {
+				console.error(`${name} failed`, e);
+				publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId: data.correlationId, userId: data.userId });
 			}
+		};
 
-			publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
-		} catch (e) {
-			console.log('capability', e);
+	const handleCapabilities = async (data: CapabilitiesResponse) => {
+		const { correlationId, roomId, userId } = data;
+		const capabilities = await getCapabilities(roomId, userId);
+
+		if (capabilities) {
+			publish<CapabilitiesPayload>(MEDIA_ROUTES.SEND.CAPABILITIES, {
+				capabilities,
+				correlationId,
+				userId,
+			});
+			return;
 		}
+
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleDtls = async (data: DtlsResponse) => {
@@ -78,22 +85,18 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 	};
 
 	const handleDtlsConnect = async (data: DtlsConnectResponse) => {
-		try {
-			const { correlationId, direction, dtlsParameters, userId } = data;
-			const flag = await connectTransport(userId, direction, dtlsParameters);
+		const { correlationId, direction, dtlsParameters, userId } = data;
+		const flag = await connectTransport(userId, direction, dtlsParameters);
 
-			if (flag) {
-				publish<DtlsConnectPayload>(MEDIA_ROUTES.SEND.DTLS_CONNECT, {
-					correlationId,
-					userId,
-				});
-				return;
-			}
-
-			publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
-		} catch (e) {
-			console.log(e);
+		if (flag) {
+			publish<DtlsConnectPayload>(MEDIA_ROUTES.SEND.DTLS_CONNECT, {
+				correlationId,
+				userId,
+			});
+			return;
 		}
+
+		publish<ErrorPayload>(MEDIA_ROUTES.SEND.ERROR, { correlationId, userId });
 	};
 
 	const handleRtls = async (data: RtlsResponse) => {
@@ -177,16 +180,25 @@ export const subscriptionHandler = ({ publish, subscribe }: HandlerProps) => {
 
 	const onConnect = () => {
 		reset();
-		subscribe<CapabilitiesResponse>(MEDIA_ROUTES.SUB.CAPABILITIES, handleCapabilities);
-		subscribe<DtlsResponse>(MEDIA_ROUTES.SUB.DTLS, handleDtls);
-		subscribe<DtlsConnectResponse>(MEDIA_ROUTES.SUB.DTLS_CONNECT, handleDtlsConnect);
-		subscribe<RtlsResponse>(MEDIA_ROUTES.SUB.RTLS, handleRtls);
-		subscribe<ConsumerParamsResponse>(MEDIA_ROUTES.SUB.CONSUMER_PARAMS, handleConsumerParams);
+		subscribe<CapabilitiesResponse>(MEDIA_ROUTES.SUB.CAPABILITIES, withErrorReply('capabilities', handleCapabilities));
+		subscribe<DtlsResponse>(MEDIA_ROUTES.SUB.DTLS, withErrorReply('dtls', handleDtls));
+		subscribe<DtlsConnectResponse>(MEDIA_ROUTES.SUB.DTLS_CONNECT, withErrorReply('dtlsConnect', handleDtlsConnect));
+		subscribe<RtlsResponse>(MEDIA_ROUTES.SUB.RTLS, withErrorReply('rtls', handleRtls));
+		subscribe<ConsumerParamsResponse>(
+			MEDIA_ROUTES.SUB.CONSUMER_PARAMS,
+			withErrorReply('consumerParams', handleConsumerParams),
+		);
 		subscribe<ConsumerResumeResponse>(MEDIA_ROUTES.SUB.CONSUMER_RESUME, handleConsumerResume);
 		subscribe<ConsumerPauseResponse>(MEDIA_ROUTES.SUB.CONSUMER_PAUSE, handleConsumerPause);
-		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_PAUSE, handleProducerPause);
+		subscribe<ProducerMuteResponse>(
+			MEDIA_ROUTES.SUB.PRODUCER_PAUSE,
+			withErrorReply('producerPause', handleProducerPause),
+		);
 		subscribe<ProducerRemoveResponse>(MEDIA_ROUTES.SUB.PRODUCER_REMOVE, handleProducerRemove);
-		subscribe<ProducerMuteResponse>(MEDIA_ROUTES.SUB.PRODUCER_RESUME, handleProducerResume);
+		subscribe<ProducerMuteResponse>(
+			MEDIA_ROUTES.SUB.PRODUCER_RESUME,
+			withErrorReply('producerResume', handleProducerResume),
+		);
 		subscribe<LeaveResponse>(MEDIA_ROUTES.SUB.LEAVE, handleLeave);
 	};
 
