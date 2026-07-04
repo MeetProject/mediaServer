@@ -1,6 +1,6 @@
 import { AppData, DtlsParameters, RtpCapabilities, RtpParameters } from 'mediasoup/types';
 
-import { ConsumerParams, TransportDriectionType, TransportOptions } from './mediasoup.js';
+import { ConsumerParams, TransportDirectionType, TransportOptions } from './mediasoup.js';
 import { TrackType } from './track.js';
 
 interface MessageBase {
@@ -22,7 +22,7 @@ export interface CapabilitiesPayload extends MessageBase {
 
 export interface DtlsResponse extends MessageBase {
 	roomId: string;
-	direction: TransportDriectionType;
+	direction: TransportDirectionType;
 }
 
 export interface DtlsPayload extends MessageBase {
@@ -31,7 +31,7 @@ export interface DtlsPayload extends MessageBase {
 
 export interface DtlsConnectResponse extends MessageBase {
 	dtlsParameters: DtlsParameters;
-	direction: TransportDriectionType;
+	direction: TransportDirectionType;
 }
 
 export interface DtlsConnectPayload extends MessageBase {}

@@ -12,7 +12,7 @@ import { audioMonitor } from './audioMonitor.js';
 import { broadcast } from './broadcast.js';
 import { getWorker } from './worker.js';
 import { MEDIASOUP_CONFIG } from '@/constant/mediasoupConfig.js';
-import { ConsumerParams, Room, TransportDriectionType, TransportOptions } from '@/type/mediasoup.js';
+import { ConsumerParams, Room, TransportDirectionType, TransportOptions } from '@/type/mediasoup.js';
 import { TrackType } from '@/type/track.js';
 import { computeIfAbsent, runWithLock } from '@/util/map.js';
 
@@ -20,7 +20,7 @@ const MAX_SPEAKER = 5;
 
 export const mediasoup = () => {
 	const rooms = new Map<string, Room>();
-	const transports = new Map<string, Map<TransportDriectionType, WebRtcTransport>>();
+	const transports = new Map<string, Map<TransportDirectionType, WebRtcTransport>>();
 
 	const userProducer = new Map<string, Set<string>>();
 	const userConsumer = new Map<string, Set<string>>();
@@ -83,7 +83,7 @@ export const mediasoup = () => {
 		return room.router.rtpCapabilities;
 	};
 
-	const getTransportOption = async (roomId: string, userId: string, direction: TransportDriectionType) => {
+	const getTransportOption = async (roomId: string, userId: string, direction: TransportDirectionType) => {
 		const router = rooms.get(roomId)?.router;
 		if (!router) {
 			return null;
@@ -118,7 +118,7 @@ export const mediasoup = () => {
 
 	const connectTransport = async (
 		userId: string,
-		direction: TransportDriectionType,
+		direction: TransportDirectionType,
 		dtlsParameters: DtlsParameters,
 	) => {
 		const transport = transports.get(userId)?.get(direction);
